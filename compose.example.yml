@@ -1,0 +1,100 @@
+services:
+    yrt-db:
+        container_name: yrt-db
+        image: postgres
+        restart: always
+        environment:
+            POSTGRES_USER: "${POSTGRES_USER}"
+            POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+            POSTGRES_DB: "${POSTGRES_DB}"
+        networks:
+            - yrt
+
+    yrt-meilisearch:
+        container_name: yrt-meilisearch
+        image: getmeili/meilisearch:latest
+        restart: always
+    networks:
+        - yrt
+    environment:
+        MEILI_MASTER_KEY: "${MEILI_MASTER_KEY}"
+        MEILI_ENV: "${MEILI_ENV:-development}"
+    volumes:
+        - ./meili_data:/meili_data
+              
+    yrt-meilibridge:
+        depends_on:
+        yrt-db:
+            condition: service_healthy
+        yrt-meilisearch:
+        condition: service_healthy
+        container_name: yrt-meilibridge
+        image: binarytouch/meilibridge:latest
+        restart: always
+        networks:
+            - yrt
+        environment:
+            POSTGRES_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@yrt-db:5432/${POSTGRES_DB}"
+            MEILISEARCH_URL: "http://yrt-meilisearch:7700"
+            MEILISEARCH_API_KEY: "${MEILI_MASTER_KEY}"
+        volumes:
+            - "${MEILIBRIDGE_CONFIG}:/etc/meilibridge/config.yaml:ro"
+
+    yrt:
+        depends_on:
+            - yrt-db
+        image: goodm2ice/yorutracker
+        restart: always
+        networks:
+            - yrt
+            - traefik
+        environment:
+            DB_HOST: yrt-db
+            DB_PORT: 5432
+            DB_USER: "${POSTGRES_USER}"
+            DB_PASS: "${POSTGRES_PASSWORD}"
+            DB_NAME: "${POSTGRES_DB}"
+            ARCHIVE_PATH: /backup.xz
+            HOST: ${YRT_HOST}
+            PORT: ${YRT_WEBPORT}
+            
+            MEILI_HOST: yrt-meilisearch
+            MEILI_PORT: 7700
+            MEILI_MASTER_KEY: "${MEILI_MASTER_KEY}"
+        
+            QBITTORRENT_HOST: "${QBITTORRENT_HOST}"
+            QBITTORRENT_USER: "${QBITTORRENT_USER}$"
+            QBITTORRENT_PASS: "${QBITTORRENT_PASS}$"
+        volumes:
+            - "${YRT_ARCHIVE_PATH}:/backup.xz"
+            - ./images:/tracker-images
+        labels:
+            - traefik.enable=true
+            - traefik.docker.network=traefik
+
+            - traefik.http.routers.yrt.rule=Host(`${SUB_DOMAIN}.${DOMAINNAME_1}`)
+            - traefik.http.routers.yrt.entrypoints=https
+            - traefik.http.routers.yrt.tls=true
+            - traefik.http.routers.yrt.tls.certresolver=letsencrypt
+            - traefik.http.routers.yrt.service=yrt
+
+            - traefik.http.routers.yrt-local.rule=Host(`${SUB_DOMAIN}.${DOMAINNAME_2}`)
+            - traefik.http.routers.yrt-local.entrypoints=https
+            - traefik.http.routers.yrt-local.tls=true
+            - traefik.http.routers.yrt-local.tls.certresolver=local-ca
+            - traefik.http.routers.yrt-local.service=yrt
+            
+            - traefik.http.services.yrt.loadbalancer.server.port=${YRT_WEBPORT}
+
+            - homepage.group=Общедоступные
+            - homepage.name=YoRuTracker
+            - homepage.icon=si-utorrent
+            - homepage.instance.public.href=https://${SUB_DOMAIN}.${DOMAINNAME_1}
+            - homepage.instance.private.href=https://${SUB_DOMAIN}.${DOMAINNAME_2}
+            - homepage.description=Локальный сервис поиска торрент-трекеров
+
+networks:
+    yrt:
+        internal: true
+    traefik:
+        external: true
