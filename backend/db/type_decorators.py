@@ -1,3 +1,4 @@
+from pydantic import BaseModel, ValidationError
 from typing import Any, Type
 from pathlib import Path
 from dataclasses import asdict, is_dataclass
@@ -44,7 +45,36 @@ class DataclassJSON(TypeDecorator):
         return value
 
 
+class ModelJSON(TypeDecorator):
+    impl = JSON
+    
+    def __init__(self, *model_types: type[BaseModel], **kwargs):
+        super().__init__(**kwargs)
+        self.model_types = model_types
+
+    def process_bind_param(self, value: Any, dialect) -> Any:
+        if isinstance(value, BaseModel):
+            return value.model_dump()
+        return value
+
+    def process_result_value(self, value: Any, dialect) -> Any:
+        if value is None or not isinstance(value, dict):
+            return value
+        
+        if isinstance(value, BaseModel):
+            return value
+
+        i = 0
+        while i < len(self.model_types):
+            try:
+                return self.model_types[i].model_validate(value)
+            except ValidationError:
+                i += 1
+
+        raise ValueError('Неизвестный формат значения!')
+
 __all__ = [
     'PathType',
     'DataclassJSON',
+    'ModelJSON',
 ]
