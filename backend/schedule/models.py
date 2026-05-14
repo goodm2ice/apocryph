@@ -44,14 +44,14 @@ class DateJob(BaseModel):
 
 class CronJob(BaseModel):
     type: str = 'cron'
-    year: int | str = 0
-    month: int | str = 0
-    day: int | str = 0
-    week: int | str = 0
-    day_of_week: int | str = 0
-    hour: int | str = 0
-    minute: int | str = 0
-    second: int | str = 0
+    year: int | str | None = None
+    month: int | str | None = None
+    day: int | str | None = None
+    week: int | str | None = None
+    day_of_week: int | str | None = None
+    hour: int | str | None = None
+    minute: int | str | None = None
+    second: int | str | None = None
     start_date: datetime | None = None
     end_date: datetime | None = None
     timezone: str | None = None

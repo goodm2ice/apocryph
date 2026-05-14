@@ -1,28 +1,29 @@
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, JSON
 
 from ..type_decorators import ModelJSON
 from ...schedule.models import *
 
 
-class JobScheduleBase(SQLModel):
+class JobSettingsBase(SQLModel):
     schedule: IntervalJob | CalendarIntervalJob | DateJob | CronJob | CombinedJob = Field(sa_type=ModelJSON(CombinedJob, IntervalJob, CalendarIntervalJob, DateJob, CronJob))
+    settings: dict | None = Field(default=None, sa_type=JSON)
 
 
-class JobSchedule(JobScheduleBase, table=True):
+class JobSettings(JobSettingsBase, table=True):
     job_key: str | None = Field(default=None, primary_key=True)
 
 
-class JobSchedulePublic(JobScheduleBase):
+class JobSettingsPublic(JobSettingsBase):
     job_key: str
 
 
-class JobScheduleCreate(JobScheduleBase):
+class JobSettingsCreate(JobSettingsBase):
     job_key: str
 
 
 __all__ = [
-    'JobScheduleBase',
-    'JobSchedule',
-    'JobSchedulePublic',
-    'JobScheduleCreate',
+    'JobSettingsBase',
+    'JobSettings',
+    'JobSettingsPublic',
+    'JobSettingsCreate',
 ]

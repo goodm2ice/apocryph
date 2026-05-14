@@ -1,3 +1,6 @@
+from pydantic import BaseModel, ConfigDict
+
+from ...config import LogLevel
 from ..models import *
 
 class JobMeta(type):
@@ -23,6 +26,12 @@ class JobMeta(type):
 
 
 class JobBase(metaclass=JobMeta):
+    class JobSettings(BaseModel):
+        model_config = ConfigDict(use_attribute_docstrings=True)
+
+        loglevel: LogLevel = LogLevel.WARNING
+        """ Уровень логгирования задачи """
+
     def __init_subclass__(
             cls, /,
             id: str,
@@ -40,8 +49,15 @@ class JobBase(metaclass=JobMeta):
         if id is not None and any((c.type_id == id and c != cls for c in JobBase.__subclasses__())):
             raise ValueError(f'Задача с ID={id} уже существует!')
 
-    def __init__(self, schedule: CombinedJob | IntervalJob | CalendarIntervalJob | DateJob | CronJob, *args, **kwargs):
+    def __init__(self, schedule: CombinedJob | IntervalJob | CalendarIntervalJob | DateJob | CronJob, settings: dict | str | None = None, *args, **kwargs):
         self.schedule = schedule
+        match settings:
+            case dict():
+                self.settings = self.__class__.JobSettings.model_validate(settings)
+            case str():
+                self.settings = self.__class__.JobSettings.model_validate_json(settings)
+            case _:
+                self.settings = self.__class__.JobSettings()
 
     async def run(self):
         raise NotImplementedError('Вызов задачи ещё не описан!')

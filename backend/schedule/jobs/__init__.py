@@ -1,5 +1,5 @@
 from .base import JobBase
-from .clear_forums import *
+from .db_cleanup import *
 
 jobs = JobBase.metadata
 
