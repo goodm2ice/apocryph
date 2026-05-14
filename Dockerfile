@@ -1,29 +1,33 @@
-FROM node:24-slim AS front_build
+FROM node:24-alpine AS front_base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable
 WORKDIR /app
+
+FROM front_base AS front_build
 COPY frontend/package.json frontend/pnpm-lock.yaml .
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store \
-    pnpm install --frozen-lockfile
-COPY frontend/* .
+pnpm install --frozen-lockfile
+COPY frontend/ .
 RUN pnpm run build
 
 FROM python:3.12-slim
 # Установка uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-WORKDIR /app
+WORKDIR /app/backend
 # Установка зависимостей
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=backend/uv.lock,target=uv.lock \
     --mount=type=bind,source=backend/pyproject.toml,target=pyproject.toml \
     uv sync --locked --no-install-project
-COPY backend/* .
+COPY backend/ .
 # Синхронизация проекта
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 # Переносим билд фронта
-COPY --from=front_build /app/dist ./frontend
+ENV PATH="/app/backend/.venv/bin:$PATH"
+WORKDIR /app
+COPY --from=front_build /app/dist ./frontend/dist
 
 ENV FASTAPI_HOST='0.0.0.0'
 ENV FASTAPI_PORT=5000
@@ -36,10 +40,9 @@ ENV DB_TYPE='postgres'
 ENV ARCHIVEPATH='/home/server/rutracker-20260425.xml.xz'
 ENV LOGLEVEL='INFO'
 ENV MEILI_HOST='http://meilisearch:7700'
-ENV MEILI_MASTER_KEY = '<very hard master key>'
-ENV QBITTORRENT_HOST = 'http://qbittorrent:8080'
-ENV QBITTORRENT_USERNAME = 'admin'
-ENV QBITTORRENT_PASSWORD = '<very hard password>'
+ENV MEILI_MASTER_KEY='<very hard master key>'
+ENV QBITTORRENT_HOST='http://qbittorrent:8080'
+ENV QBITTORRENT_USERNAME='admin'
+ENV QBITTORRENT_PASSWORD='<very hard password>'
 
-WORKDIR /
-CMD python -m app
+CMD ["uv", "run", "python", "-m", "backend"]
