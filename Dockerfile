@@ -24,5 +24,22 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 # Переносим билд фронта
 COPY --from=front_build /app/dist ./frontend
-ENTRYPOINT ["/bin/sh"]
-CMD ["entrypoint.sh"]
+
+ENV FASTAPI_HOST='0.0.0.0'
+ENV FASTAPI_PORT=5000
+ENV DB_USERNAME='postgres'
+ENV DB_PASSWORD='q'
+ENV DB_HOST='db'
+ENV DB_NAME='yrt'
+ENV DB_PORT=5432
+ENV DB_TYPE='postgres'
+ENV ARCHIVEPATH='/home/server/rutracker-20260425.xml.xz'
+ENV LOGLEVEL='INFO'
+ENV MEILI_HOST='http://meilisearch:7700'
+ENV MEILI_MASTER_KEY = '<very hard master key>'
+ENV QBITTORRENT_HOST = 'http://qbittorrent:8080'
+ENV QBITTORRENT_USERNAME = 'admin'
+ENV QBITTORRENT_PASSWORD = '<very hard password>'
+
+WORKDIR /
+CMD python -m app

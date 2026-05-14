@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Self
 from sqlmodel import Relationship, SQLModel, Field
 from dataclasses import dataclass
 from ..type_decorators import DataclassJSON
@@ -12,16 +12,16 @@ if TYPE_CHECKING:
 
 @dataclass
 class File:
-    type: str = "file"
     name: str
     size: int
+    type: str = "file"
 
 
 @dataclass
 class Dir:
-    type: str = "dir"
     name: str
-    contents: list['Dir' | File] = []
+    contents: list[Self | File] = Field(default_factory=[])
+    type: str = "dir"
 
 
 class TorrentBase(SQLModel):
